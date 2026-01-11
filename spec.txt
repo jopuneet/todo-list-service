@@ -1,0 +1,57 @@
+Backend Challenge: Todo List Service 📝
+
+Objective
+Design and implement a resilient backend service for managing a simple to-do list. The service
+should be built with best practices in mind, focusing on code quality, testing, and clean API
+design.
+
+Core Functional Requirements
+1. To-Do Item Attributes
+Each to-do item managed by the service must have the following attributes:
+- description: A string detailing the task.
+- status: A string with one of three possible values: "not done", "done", or "past due".
+- creation_datetime: The timestamp when the item was created.
+- due_datetime: The timestamp by which the task should be completed.
+- done_datetime: The timestamp when the item was marked as "done". This can be null.
+
+2. RESTful API Endpoints
+The service must expose a RESTful API to perform the following actions:
+- Add an item: Create a new to-do item.
+- Update an item's description: Change the text of an existing item.
+- Mark an item as "done": Change an item's status to "done".
+- Mark an item as "not done": Change an item's status back to "not done".
+- Get an item: Retrieve the full details of a single to-do item.
+- Get all "not done" items: Retrieve a list of all items with the status "not done". This endpoint should also include an option to fetch all items, regardless of their status. 
+
+Business Logic & Constraints
+- Automatic Status Update: The service must include a mechanism to automatically change an item's status to "past due" if its due_datetime is in the past and its status is still "not done".
+- API Restriction: Once an item's status is "past due", it should become immutable. The service must forbid any changes to "past due" items via the REST API.
+
+Technical & Non-Functional Requirements
+
+Your implementation should:
+- Be fully dockerized and runnable via Docker.
+- Use an H2 in-memory database for data persistence.
+- Contain a suite of automatic tests. We are more interested in your approach to testing
+and the quality of tests rather than achieving 100% coverage.
+
+Your implementation should not:
+- Implement any form of user authentication or authorization.
+
+Submission Guidelines
+Your work should be submitted as a link to a Git repository that we can clone. The repository's README.md file must contain brief notes covering:
+1. Service Description: A brief overview of your solution and any assumptions you made.
+2. Tech Stack: The runtime environment, frameworks, and key libraries used.
+3. How-To Guide: Simple, clear instructions on how to:
+- Build the service.
+- Run the automatic tests.
+- Run the service locally using Docker.
+
+Evaluation Criteria
+Your submission will be evaluated based on the following:
+- Alignment with Requirements: How well the solution meets the functional and non-functional requirements.
+- Code Quality & Readability: The clarity, structure, and maintainability of your code.
+- Best Practices: Your approach to handling potential edge cases and errors.
+- Testing: The presence and quality of your automatic tests.
+- Commit History: Your thought process as reflected in your git commit messages.
+
