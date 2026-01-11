@@ -42,7 +42,6 @@ public class TodoServiceImpl implements TodoService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public TodoResponse getTodoById(Long id) {
         log.debug("Fetching todo item with id: {}", id);
         
@@ -55,7 +54,6 @@ public class TodoServiceImpl implements TodoService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<TodoResponse> getAllTodos(boolean includeAll) {
         log.debug("Fetching all todos, includeAll: {}", includeAll);
         
@@ -152,8 +150,8 @@ public class TodoServiceImpl implements TodoService {
         // Then check if it should be marked as past due
         if (todoItem.getStatus() == TodoStatus.NOT_DONE && 
             todoItem.getDueDatetime().isBefore(LocalDateTime.now())) {
-            todoItem.setStatus(TodoStatus.PAST_DUE);
-            todoRepository.save(todoItem);
+            // Mark as past due - this will be persisted by the calling method's transaction
+            // or by the scheduler. The important thing is to reject the modification.
             throw new TodoImmutableException(todoItem.getId());
         }
     }

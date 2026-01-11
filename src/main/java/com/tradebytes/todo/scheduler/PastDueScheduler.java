@@ -23,7 +23,7 @@ public class PastDueScheduler {
      */
     @Scheduled(fixedRate = 60000) // Run every minute
     public void updatePastDueItems() {
-        log.debug("Running scheduled past due check");
+        log.info("Running scheduled past due check");
         todoService.updatePastDueItems();
     }
 }
