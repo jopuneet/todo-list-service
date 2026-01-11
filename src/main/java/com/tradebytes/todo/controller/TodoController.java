@@ -4,6 +4,7 @@ import com.tradebytes.todo.dto.CreateTodoRequest;
 import com.tradebytes.todo.dto.ErrorResponse;
 import com.tradebytes.todo.dto.TodoResponse;
 import com.tradebytes.todo.dto.UpdateDescriptionRequest;
+import com.tradebytes.todo.dto.UpdateStatusRequest;
 import com.tradebytes.todo.service.TodoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -147,18 +148,27 @@ public class TodoController {
     }
 
     /**
-     * Mark a todo item as done.
+     * Update the status of a todo item.
      */
     @Operation(
-            summary = "Mark todo item as done",
-            description = "Marks a todo item as 'done' and sets the done_datetime to the current timestamp. " +
-                    "**Note:** This operation is not allowed for items with 'past due' status."
+            summary = "Update todo item status",
+            description = "Updates the status of an existing todo item. " +
+                    "Only 'done' and 'not done' statuses are allowed. " +
+                    "When marking as 'done', the done_datetime is automatically set to the current timestamp. " +
+                    "When marking as 'not done', the done_datetime is cleared. " +
+                    "**Note:** This operation is not allowed for items with 'past due' status. " +
+                    "Setting status to 'past due' via API is forbidden."
     )
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
-                    description = "Item marked as done successfully",
+                    description = "Status updated successfully",
                     content = @Content(schema = @Schema(implementation = TodoResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid request body or invalid status value",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(
                     responseCode = "404",
@@ -171,44 +181,12 @@ public class TodoController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PatchMapping("/{id}/done")
-    public ResponseEntity<TodoResponse> markAsDone(
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<TodoResponse> updateStatus(
             @Parameter(description = "Unique identifier of the todo item", required = true)
-            @PathVariable Long id) {
-        TodoResponse response = todoService.markAsDone(id);
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Mark a todo item as not done.
-     */
-    @Operation(
-            summary = "Mark todo item as not done",
-            description = "Marks a todo item as 'not done' and clears the done_datetime. " +
-                    "**Note:** This operation is not allowed for items with 'past due' status."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Item marked as not done successfully",
-                    content = @Content(schema = @Schema(implementation = TodoResponse.class))
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Todo item not found",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Cannot modify past due item",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            )
-    })
-    @PatchMapping("/{id}/not-done")
-    public ResponseEntity<TodoResponse> markAsNotDone(
-            @Parameter(description = "Unique identifier of the todo item", required = true)
-            @PathVariable Long id) {
-        TodoResponse response = todoService.markAsNotDone(id);
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateStatusRequest request) {
+        TodoResponse response = todoService.updateStatus(id, request);
         return ResponseEntity.ok(response);
     }
 }

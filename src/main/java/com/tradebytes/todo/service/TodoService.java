@@ -3,6 +3,7 @@ package com.tradebytes.todo.service;
 import com.tradebytes.todo.dto.CreateTodoRequest;
 import com.tradebytes.todo.dto.TodoResponse;
 import com.tradebytes.todo.dto.UpdateDescriptionRequest;
+import com.tradebytes.todo.dto.UpdateStatusRequest;
 
 import java.util.List;
 
@@ -34,14 +35,10 @@ public interface TodoService {
     TodoResponse updateDescription(Long id, UpdateDescriptionRequest request);
 
     /**
-     * Mark a todo item as done.
+     * Update the status of a todo item.
+     * Only allows changing to 'done' or 'not done'.
      */
-    TodoResponse markAsDone(Long id);
-
-    /**
-     * Mark a todo item as not done.
-     */
-    TodoResponse markAsNotDone(Long id);
+    TodoResponse updateStatus(Long id, UpdateStatusRequest request);
 
     /**
      * Update status of all past due items.

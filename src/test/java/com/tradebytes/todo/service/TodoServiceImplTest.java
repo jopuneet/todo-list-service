@@ -3,6 +3,7 @@ package com.tradebytes.todo.service;
 import com.tradebytes.todo.dto.CreateTodoRequest;
 import com.tradebytes.todo.dto.TodoResponse;
 import com.tradebytes.todo.dto.UpdateDescriptionRequest;
+import com.tradebytes.todo.dto.UpdateStatusRequest;
 import com.tradebytes.todo.entity.TodoItem;
 import com.tradebytes.todo.entity.TodoStatus;
 import com.tradebytes.todo.exception.TodoImmutableException;
@@ -195,12 +196,16 @@ class TodoServiceImplTest {
     }
 
     @Nested
-    @DisplayName("Mark As Done Tests")
-    class MarkAsDoneTests {
+    @DisplayName("Update Status Tests")
+    class UpdateStatusTests {
 
         @Test
-        @DisplayName("Should mark todo as done successfully")
-        void shouldMarkAsDoneSuccessfully() {
+        @DisplayName("Should update status to done successfully")
+        void shouldUpdateStatusToDoneSuccessfully() {
+            UpdateStatusRequest statusRequest = UpdateStatusRequest.builder()
+                    .status("done")
+                    .build();
+
             TodoItem doneItem = TodoItem.builder()
                     .id(1L)
                     .description("Test task")
@@ -221,33 +226,21 @@ class TodoServiceImplTest {
             when(todoRepository.save(any(TodoItem.class))).thenReturn(doneItem);
             when(todoMapper.toResponse(any(TodoItem.class))).thenReturn(doneResponse);
 
-            TodoResponse result = todoService.markAsDone(1L);
+            TodoResponse result = todoService.updateStatus(1L, statusRequest);
 
             assertThat(result.getStatus()).isEqualTo("done");
             assertThat(result.getDoneDatetime()).isNotNull();
         }
 
         @Test
-        @DisplayName("Should throw exception when marking past due item as done")
-        void shouldThrowExceptionWhenMarkingPastDueAsDone() {
-            sampleTodoItem.setStatus(TodoStatus.PAST_DUE);
-
-            when(todoRepository.findById(1L)).thenReturn(Optional.of(sampleTodoItem));
-
-            assertThatThrownBy(() -> todoService.markAsDone(1L))
-                    .isInstanceOf(TodoImmutableException.class);
-        }
-    }
-
-    @Nested
-    @DisplayName("Mark As Not Done Tests")
-    class MarkAsNotDoneTests {
-
-        @Test
-        @DisplayName("Should mark todo as not done successfully")
-        void shouldMarkAsNotDoneSuccessfully() {
+        @DisplayName("Should update status to not done successfully")
+        void shouldUpdateStatusToNotDoneSuccessfully() {
             sampleTodoItem.setStatus(TodoStatus.DONE);
             sampleTodoItem.setDoneDatetime(LocalDateTime.now());
+
+            UpdateStatusRequest statusRequest = UpdateStatusRequest.builder()
+                    .status("not done")
+                    .build();
 
             TodoItem notDoneItem = TodoItem.builder()
                     .id(1L)
@@ -269,21 +262,38 @@ class TodoServiceImplTest {
             when(todoRepository.save(any(TodoItem.class))).thenReturn(notDoneItem);
             when(todoMapper.toResponse(any(TodoItem.class))).thenReturn(notDoneResponse);
 
-            TodoResponse result = todoService.markAsNotDone(1L);
+            TodoResponse result = todoService.updateStatus(1L, statusRequest);
 
             assertThat(result.getStatus()).isEqualTo("not done");
             assertThat(result.getDoneDatetime()).isNull();
         }
 
         @Test
-        @DisplayName("Should throw exception when marking past due item as not done")
-        void shouldThrowExceptionWhenMarkingPastDueAsNotDone() {
+        @DisplayName("Should throw exception when updating past due item status")
+        void shouldThrowExceptionWhenUpdatingPastDueItemStatus() {
             sampleTodoItem.setStatus(TodoStatus.PAST_DUE);
+            UpdateStatusRequest statusRequest = UpdateStatusRequest.builder()
+                    .status("done")
+                    .build();
 
             when(todoRepository.findById(1L)).thenReturn(Optional.of(sampleTodoItem));
 
-            assertThatThrownBy(() -> todoService.markAsNotDone(1L))
+            assertThatThrownBy(() -> todoService.updateStatus(1L, statusRequest))
                     .isInstanceOf(TodoImmutableException.class);
+        }
+
+        @Test
+        @DisplayName("Should throw exception when trying to set past due status via API")
+        void shouldThrowExceptionWhenSettingPastDueStatus() {
+            UpdateStatusRequest statusRequest = UpdateStatusRequest.builder()
+                    .status("past due")
+                    .build();
+
+            when(todoRepository.findById(1L)).thenReturn(Optional.of(sampleTodoItem));
+
+            assertThatThrownBy(() -> todoService.updateStatus(1L, statusRequest))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Cannot set status to 'past due' via API");
         }
     }
 

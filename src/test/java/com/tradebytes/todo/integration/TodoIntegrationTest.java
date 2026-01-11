@@ -3,6 +3,7 @@ package com.tradebytes.todo.integration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tradebytes.todo.dto.CreateTodoRequest;
 import com.tradebytes.todo.dto.UpdateDescriptionRequest;
+import com.tradebytes.todo.dto.UpdateStatusRequest;
 import com.tradebytes.todo.entity.TodoItem;
 import com.tradebytes.todo.entity.TodoStatus;
 import com.tradebytes.todo.repository.TodoRepository;
@@ -17,7 +18,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -40,7 +40,7 @@ class TodoIntegrationTest {
     }
 
     @Test
-    @DisplayName("Full lifecycle: create, update, mark done, mark not done")
+    @DisplayName("Full lifecycle: create, update description, update status")
     void fullLifecycleTest() throws Exception {
         // Create
         CreateTodoRequest createRequest = CreateTodoRequest.builder()
@@ -59,24 +59,36 @@ class TodoIntegrationTest {
         Long todoId = objectMapper.readTree(createResponse).get("id").asLong();
 
         // Update description
-        UpdateDescriptionRequest updateRequest = UpdateDescriptionRequest.builder()
+        UpdateDescriptionRequest updateDescRequest = UpdateDescriptionRequest.builder()
                 .description("Updated integration test task")
                 .build();
 
         mockMvc.perform(patch("/api/todos/" + todoId + "/description")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateRequest)))
+                        .content(objectMapper.writeValueAsString(updateDescRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.description").value("Updated integration test task"));
 
-        // Mark as done
-        mockMvc.perform(patch("/api/todos/" + todoId + "/done"))
+        // Update status to done
+        UpdateStatusRequest doneRequest = UpdateStatusRequest.builder()
+                .status("done")
+                .build();
+
+        mockMvc.perform(patch("/api/todos/" + todoId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(doneRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("done"))
                 .andExpect(jsonPath("$.done_datetime").isNotEmpty());
 
-        // Mark as not done
-        mockMvc.perform(patch("/api/todos/" + todoId + "/not-done"))
+        // Update status back to not done
+        UpdateStatusRequest notDoneRequest = UpdateStatusRequest.builder()
+                .status("not done")
+                .build();
+
+        mockMvc.perform(patch("/api/todos/" + todoId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(notDoneRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("not done"))
                 .andExpect(jsonPath("$.done_datetime").isEmpty());
@@ -104,13 +116,44 @@ class TodoIntegrationTest {
                         .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isConflict());
 
-        // Try to mark as done
-        mockMvc.perform(patch("/api/todos/" + pastDueItem.getId() + "/done"))
-                .andExpect(status().isConflict());
+        // Try to update status
+        UpdateStatusRequest statusRequest = UpdateStatusRequest.builder()
+                .status("done")
+                .build();
 
-        // Try to mark as not done
-        mockMvc.perform(patch("/api/todos/" + pastDueItem.getId() + "/not-done"))
+        mockMvc.perform(patch("/api/todos/" + pastDueItem.getId() + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(statusRequest)))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Should validate status values")
+    void shouldValidateStatusValues() throws Exception {
+        // Create a todo first
+        TodoItem todoItem = TodoItem.builder()
+                .description("Test task")
+                .status(TodoStatus.NOT_DONE)
+                .creationDatetime(LocalDateTime.now())
+                .dueDatetime(LocalDateTime.now().plusDays(1))
+                .build();
+        todoItem = todoRepository.save(todoItem);
+
+        // Try to set invalid status
+        String invalidStatusRequest = "{\"status\": \"invalid\"}";
+
+        mockMvc.perform(patch("/api/todos/" + todoItem.getId() + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidStatusRequest))
+                .andExpect(status().isBadRequest());
+
+        // Try to set past due status via API
+        String pastDueRequest = "{\"status\": \"past due\"}";
+
+        mockMvc.perform(patch("/api/todos/" + todoItem.getId() + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pastDueRequest))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

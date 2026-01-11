@@ -142,8 +142,7 @@ The Swagger UI provides an interactive interface to explore and test all API end
 | GET | `/api/todos` | Get all "not done" items |
 | GET | `/api/todos?all=true` | Get all items (any status) |
 | PATCH | `/api/todos/{id}/description` | Update item description |
-| PATCH | `/api/todos/{id}/done` | Mark item as done |
-| PATCH | `/api/todos/{id}/not-done` | Mark item as not done |
+| PATCH | `/api/todos/{id}/status` | Update item status (done/not done) |
 
 ### Example Requests
 
@@ -176,16 +175,20 @@ curl -X PATCH http://localhost:8080/api/todos/1/description \
   -d '{"description": "Updated task description"}'
 ```
 
-#### Mark as Done
+#### Update Status (Mark as Done)
 
 ```bash
-curl -X PATCH http://localhost:8080/api/todos/1/done
+curl -X PATCH http://localhost:8080/api/todos/1/status \
+  -H "Content-Type: application/json" \
+  -d '{"status": "done"}'
 ```
 
-#### Mark as Not Done
+#### Update Status (Mark as Not Done)
 
 ```bash
-curl -X PATCH http://localhost:8080/api/todos/1/not-done
+curl -X PATCH http://localhost:8080/api/todos/1/status \
+  -H "Content-Type: application/json" \
+  -d '{"status": "not done"}'
 ```
 
 ## Response Format
@@ -219,7 +222,9 @@ curl -X PATCH http://localhost:8080/api/todos/1/not-done
 
 - `not done` - Item is pending
 - `done` - Item has been completed
-- `past due` - Item's due date has passed and it was not completed (immutable)
+- `past due` - Item's due date has passed and it was not completed (immutable, set automatically)
+
+**Note:** Only `done` and `not done` can be set via API. The `past due` status is automatically assigned by the system when an item's due date passes.
 
 ## H2 Console
 

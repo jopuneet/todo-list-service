@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tradebytes.todo.dto.CreateTodoRequest;
 import com.tradebytes.todo.dto.TodoResponse;
 import com.tradebytes.todo.dto.UpdateDescriptionRequest;
+import com.tradebytes.todo.dto.UpdateStatusRequest;
 import com.tradebytes.todo.exception.TodoImmutableException;
 import com.tradebytes.todo.exception.TodoNotFoundException;
 import com.tradebytes.todo.service.TodoService;
@@ -205,12 +206,16 @@ class TodoControllerTest {
     }
 
     @Nested
-    @DisplayName("PATCH /api/todos/{id}/done - Mark As Done")
-    class MarkAsDoneEndpointTests {
+    @DisplayName("PATCH /api/todos/{id}/status - Update Status")
+    class UpdateStatusEndpointTests {
 
         @Test
-        @DisplayName("Should mark as done successfully")
-        void shouldMarkAsDoneSuccessfully() throws Exception {
+        @DisplayName("Should update status to done successfully")
+        void shouldUpdateStatusToDoneSuccessfully() throws Exception {
+            UpdateStatusRequest request = UpdateStatusRequest.builder()
+                    .status("done")
+                    .build();
+
             TodoResponse doneResponse = TodoResponse.builder()
                     .id(1L)
                     .description("Test task")
@@ -218,44 +223,72 @@ class TodoControllerTest {
                     .doneDatetime(LocalDateTime.now())
                     .build();
 
-            when(todoService.markAsDone(1L)).thenReturn(doneResponse);
+            when(todoService.updateStatus(eq(1L), any(UpdateStatusRequest.class)))
+                    .thenReturn(doneResponse);
 
-            mockMvc.perform(patch("/api/todos/1/done"))
+            mockMvc.perform(patch("/api/todos/1/status")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("done"));
         }
 
         @Test
-        @DisplayName("Should return 409 when marking past due item as done")
-        void shouldReturn409WhenMarkingPastDueAsDone() throws Exception {
-            when(todoService.markAsDone(1L)).thenThrow(new TodoImmutableException(1L));
+        @DisplayName("Should update status to not done successfully")
+        void shouldUpdateStatusToNotDoneSuccessfully() throws Exception {
+            UpdateStatusRequest request = UpdateStatusRequest.builder()
+                    .status("not done")
+                    .build();
 
-            mockMvc.perform(patch("/api/todos/1/done"))
-                    .andExpect(status().isConflict());
-        }
-    }
+            when(todoService.updateStatus(eq(1L), any(UpdateStatusRequest.class)))
+                    .thenReturn(sampleResponse);
 
-    @Nested
-    @DisplayName("PATCH /api/todos/{id}/not-done - Mark As Not Done")
-    class MarkAsNotDoneEndpointTests {
-
-        @Test
-        @DisplayName("Should mark as not done successfully")
-        void shouldMarkAsNotDoneSuccessfully() throws Exception {
-            when(todoService.markAsNotDone(1L)).thenReturn(sampleResponse);
-
-            mockMvc.perform(patch("/api/todos/1/not-done"))
+            mockMvc.perform(patch("/api/todos/1/status")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("not done"));
         }
 
         @Test
-        @DisplayName("Should return 409 when marking past due item as not done")
-        void shouldReturn409WhenMarkingPastDueAsNotDone() throws Exception {
-            when(todoService.markAsNotDone(1L)).thenThrow(new TodoImmutableException(1L));
+        @DisplayName("Should return 409 when updating past due item status")
+        void shouldReturn409WhenUpdatingPastDueItemStatus() throws Exception {
+            UpdateStatusRequest request = UpdateStatusRequest.builder()
+                    .status("done")
+                    .build();
 
-            mockMvc.perform(patch("/api/todos/1/not-done"))
+            when(todoService.updateStatus(eq(1L), any(UpdateStatusRequest.class)))
+                    .thenThrow(new TodoImmutableException(1L));
+
+            mockMvc.perform(patch("/api/todos/1/status")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isConflict());
+        }
+
+        @Test
+        @DisplayName("Should return 400 when status is invalid")
+        void shouldReturn400WhenStatusIsInvalid() throws Exception {
+            // Using raw JSON to bypass DTO validation and test controller validation
+            String invalidRequest = "{\"status\": \"invalid\"}";
+
+            mockMvc.perform(patch("/api/todos/1/status")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalidRequest))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("Should return 400 when status is blank")
+        void shouldReturn400WhenStatusIsBlank() throws Exception {
+            UpdateStatusRequest request = UpdateStatusRequest.builder()
+                    .status("")
+                    .build();
+
+            mockMvc.perform(patch("/api/todos/1/status")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
         }
     }
 }

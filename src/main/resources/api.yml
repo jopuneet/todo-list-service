@@ -6,14 +6,19 @@ info:
     
     ## Features
     - Create, read, update todo items
-    - Mark items as "done" or "not done"
+    - Mark items as "done" or "not done" via status update
     - Automatic "past due" status detection
     - Immutable past due items (cannot be modified)
     
     ## Status Values
     - `not done` - Item is pending
     - `done` - Item has been completed
-    - `past due` - Item's due date has passed (immutable)
+    - `past due` - Item's due date has passed (immutable, set automatically)
+    
+    ## Business Rules
+    - Status can only be set to "done" or "not done" via API
+    - "past due" status is automatically assigned when due date passes
+    - Items with "past due" status cannot be modified
   version: 1.0.0
   contact:
     name: Todo Service Team
@@ -204,32 +209,91 @@ paths:
                 message: "Cannot modify todo item with id: 1. Item is past due and immutable."
                 path: "/api/todos/1/description"
 
-  /api/todos/{id}/done:
+  /api/todos/{id}/status:
     patch:
       tags:
         - Todos
-      summary: Mark todo item as done
+      summary: Update todo item status
       description: |
-        Marks a todo item as "done" and sets the done_datetime to the current timestamp.
+        Updates the status of an existing todo item.
         
-        **Note:** This operation is not allowed for items with "past due" status.
-      operationId: markAsDone
+        **Allowed status values:**
+        - `done` - Marks the item as completed (sets done_datetime automatically)
+        - `not done` - Marks the item as pending (clears done_datetime)
+        
+        **Restrictions:**
+        - Cannot set status to "past due" via API (this is set automatically)
+        - Cannot modify items that are already "past due"
+      operationId: updateStatus
       parameters:
         - $ref: '#/components/parameters/TodoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStatusRequest'
+            examples:
+              markDone:
+                summary: Mark as done
+                value:
+                  status: "done"
+              markNotDone:
+                summary: Mark as not done
+                value:
+                  status: "not done"
       responses:
         '200':
-          description: Item marked as done successfully
+          description: Status updated successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/TodoResponse'
-              example:
-                id: 1
-                description: "Complete the coding challenge"
-                status: "done"
-                creation_datetime: "2026-01-11T10:30:00"
-                due_datetime: "2026-01-15T18:00:00"
-                done_datetime: "2026-01-12T14:00:00"
+              examples:
+                markedDone:
+                  summary: Item marked as done
+                  value:
+                    id: 1
+                    description: "Complete the coding challenge"
+                    status: "done"
+                    creation_datetime: "2026-01-11T10:30:00"
+                    due_datetime: "2026-01-15T18:00:00"
+                    done_datetime: "2026-01-12T14:00:00"
+                markedNotDone:
+                  summary: Item marked as not done
+                  value:
+                    id: 1
+                    description: "Complete the coding challenge"
+                    status: "not done"
+                    creation_datetime: "2026-01-11T10:30:00"
+                    due_datetime: "2026-01-15T18:00:00"
+                    done_datetime: null
+        '400':
+          description: Invalid request body or invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidStatus:
+                  summary: Invalid status value
+                  value:
+                    timestamp: "2026-01-11T10:30:00"
+                    status: 400
+                    error: "Bad Request"
+                    message: "Validation failed"
+                    path: "/api/todos/1/status"
+                    fieldErrors:
+                      - field: "status"
+                        message: "Status must be either 'done' or 'not done'"
+                pastDueAttempt:
+                  summary: Attempt to set past due
+                  value:
+                    timestamp: "2026-01-11T10:30:00"
+                    status: 400
+                    error: "Bad Request"
+                    message: "Cannot set status to 'past due' via API. This status is set automatically."
+                    path: "/api/todos/1/status"
         '404':
           description: Todo item not found
           content:
@@ -242,45 +306,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
-  /api/todos/{id}/not-done:
-    patch:
-      tags:
-        - Todos
-      summary: Mark todo item as not done
-      description: |
-        Marks a todo item as "not done" and clears the done_datetime.
-        
-        **Note:** This operation is not allowed for items with "past due" status.
-      operationId: markAsNotDone
-      parameters:
-        - $ref: '#/components/parameters/TodoId'
-      responses:
-        '200':
-          description: Item marked as not done successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TodoResponse'
               example:
-                id: 1
-                description: "Complete the coding challenge"
-                status: "not done"
-                creation_datetime: "2026-01-11T10:30:00"
-                due_datetime: "2026-01-15T18:00:00"
-                done_datetime: null
-        '404':
-          description: Todo item not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: Cannot modify past due item
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                timestamp: "2026-01-11T10:30:00"
+                status: 409
+                error: "Conflict"
+                message: "Cannot modify todo item with id: 1. Item is past due and immutable."
+                path: "/api/todos/1/status"
 
 components:
   parameters:
@@ -323,6 +354,22 @@ components:
           description: The new description for the todo item
           minLength: 1
           example: "Updated task description"
+
+    UpdateStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: |
+            The new status for the todo item.
+            Only "done" and "not done" are allowed via API.
+            Setting status to "past due" is forbidden.
+          enum:
+            - "done"
+            - "not done"
+          example: "done"
 
     TodoResponse:
       type: object

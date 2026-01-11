@@ -3,6 +3,7 @@ package com.tradebytes.todo.service;
 import com.tradebytes.todo.dto.CreateTodoRequest;
 import com.tradebytes.todo.dto.TodoResponse;
 import com.tradebytes.todo.dto.UpdateDescriptionRequest;
+import com.tradebytes.todo.dto.UpdateStatusRequest;
 import com.tradebytes.todo.entity.TodoItem;
 import com.tradebytes.todo.entity.TodoStatus;
 import com.tradebytes.todo.exception.TodoImmutableException;
@@ -88,32 +89,31 @@ public class TodoServiceImpl implements TodoService {
     }
 
     @Override
-    public TodoResponse markAsDone(Long id) {
-        log.info("Marking todo item as done with id: {}", id);
+    public TodoResponse updateStatus(Long id, UpdateStatusRequest request) {
+        log.info("Updating status for todo item with id: {} to {}", id, request.getStatus());
         
         TodoItem todoItem = findTodoById(id);
         validateNotPastDue(todoItem);
         
-        todoItem.setStatus(TodoStatus.DONE);
-        todoItem.setDoneDatetime(LocalDateTime.now());
+        TodoStatus newStatus = TodoStatus.fromValue(request.getStatus());
+        
+        // Additional validation: cannot set status to PAST_DUE via API
+        if (newStatus == TodoStatus.PAST_DUE) {
+            throw new IllegalArgumentException("Cannot set status to 'past due' via API. This status is set automatically.");
+        }
+        
+        todoItem.setStatus(newStatus);
+        
+        // Update done_datetime based on status
+        if (newStatus == TodoStatus.DONE) {
+            todoItem.setDoneDatetime(LocalDateTime.now());
+        } else {
+            todoItem.setDoneDatetime(null);
+        }
+        
         TodoItem updatedItem = todoRepository.save(todoItem);
         
-        log.info("Marked todo item as done with id: {}", id);
-        return todoMapper.toResponse(updatedItem);
-    }
-
-    @Override
-    public TodoResponse markAsNotDone(Long id) {
-        log.info("Marking todo item as not done with id: {}", id);
-        
-        TodoItem todoItem = findTodoById(id);
-        validateNotPastDue(todoItem);
-        
-        todoItem.setStatus(TodoStatus.NOT_DONE);
-        todoItem.setDoneDatetime(null);
-        TodoItem updatedItem = todoRepository.save(todoItem);
-        
-        log.info("Marked todo item as not done with id: {}", id);
+        log.info("Updated status for todo item with id: {} to {}", id, newStatus.getValue());
         return todoMapper.toResponse(updatedItem);
     }
 
