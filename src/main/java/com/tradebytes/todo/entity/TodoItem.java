@@ -36,4 +36,14 @@ public class TodoItem {
 
     @Column(name = "done_datetime")
     private LocalDateTime doneDatetime;
+
+    @PrePersist
+    protected void onCreate() {
+        if (creationDatetime == null) {
+            creationDatetime = LocalDateTime.now();
+        }
+        if (status == null) {
+            status = TodoStatus.NOT_DONE;
+        }
+    }
 }
