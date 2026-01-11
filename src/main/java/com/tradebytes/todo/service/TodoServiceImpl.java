@@ -131,18 +131,10 @@ public class TodoServiceImpl implements TodoService {
 
     /**
      * Validate that the todo item is not past due.
+     * Uses the entity's isEffectivelyPastDue() as single source of truth.
      */
     private void validateNotPastDue(TodoItem todoItem) {
-        // First check if already marked as past due
-        if (todoItem.getStatus() == TodoStatus.PAST_DUE) {
-            throw new TodoImmutableException(todoItem.getId());
-        }
-        
-        // Then check if it should be marked as past due
-        if (todoItem.getStatus() == TodoStatus.NOT_DONE && 
-            todoItem.getDueDatetime().isBefore(LocalDateTime.now())) {
-            // Mark as past due - this will be persisted by the calling method's transaction
-            // or by the scheduler. The important thing is to reject the modification.
+        if (todoItem.isEffectivelyPastDue()) {
             throw new TodoImmutableException(todoItem.getId());
         }
     }
