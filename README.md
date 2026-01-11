@@ -61,10 +61,10 @@ This service provides a RESTful API for managing todo items with:
 │                              Todo List Service                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐                │
-│  │   Client     │────▶│  Controller  │────▶│   Service    │                │
-│  │  (REST API)  │◀────│    Layer     │◀────│    Layer     │                │
-│  └──────────────┘     └──────────────┘     └──────┬───────┘                │
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐                 │
+│  │   Client     │────▶│  Controller  │────▶│   Service    │                 │
+│  │  (REST API)  │◀────│    Layer     │◀────│    Layer     │                 │
+│  └──────────────┘     └──────────────┘     └──────┬───────┘                 │
 │                                                   │                         │
 │                       ┌──────────────┐            │                         │
 │                       │  Scheduler   │────────────┤                         │
@@ -91,31 +91,31 @@ This service provides a RESTful API for managing todo items with:
 │                                Components                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  ┌────────────────────────────────────────────────────────────────────┐    │
-│  │                         Controller Layer                           │    │
-│  │  ┌──────────────────┐  ┌─────────────────┐  ┌──────────────────┐  │    │
-│  │  │  TodoController  │  │ GlobalException │  │   OpenAPI Docs   │  │    │
-│  │  │  (REST Endpoints)│  │    Handler      │  │   (Swagger UI)   │  │    │
-│  │  └──────────────────┘  └─────────────────┘  └──────────────────┘  │    │
-│  └────────────────────────────────────────────────────────────────────┘    │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │                         Controller Layer                           │     │
+│  │  ┌──────────────────┐  ┌─────────────────┐  ┌──────────────────┐   │     │
+│  │  │  TodoController  │  │ GlobalException │  │   OpenAPI Docs   │   │     │
+│  │  │  (REST Endpoints)│  │    Handler      │  │   (Swagger UI)   │   │     │
+│  │  └──────────────────┘  └─────────────────┘  └──────────────────┘   │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
 │                                    │                                        │
 │                                    ▼                                        │
-│  ┌────────────────────────────────────────────────────────────────────┐    │
-│  │                          Service Layer                             │    │
-│  │  ┌──────────────────┐  ┌─────────────────┐  ┌──────────────────┐  │    │
-│  │  │  TodoServiceImpl │  │  TodoMapper     │  │ PastDueScheduler │  │    │
-│  │  │ (Business Logic) │  │ (DTO ↔ Entity)  │  │  (Cron Job)      │  │    │
-│  │  └──────────────────┘  └─────────────────┘  └──────────────────┘  │    │
-│  └────────────────────────────────────────────────────────────────────┘    │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │                          Service Layer                             │     │
+│  │  ┌──────────────────┐  ┌─────────────────┐  ┌──────────────────┐   │     │
+│  │  │  TodoServiceImpl │  │  TodoMapper     │  │ PastDueScheduler │   │     │
+│  │  │ (Business Logic) │  │ (DTO ↔ Entity)  │  │  (Cron Job)      │   │     │
+│  │  └──────────────────┘  └─────────────────┘  └──────────────────┘   │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
 │                                    │                                        │
 │                                    ▼                                        │
-│  ┌────────────────────────────────────────────────────────────────────┐    │
-│  │                        Repository Layer                            │    │
-│  │  ┌──────────────────┐  ┌─────────────────┐  ┌──────────────────┐  │    │
-│  │  │  TodoRepository  │  │   TodoItem      │  │   TodoStatus     │  │    │
-│  │  │  (Spring Data)   │  │   (Entity)      │  │   (Enum)         │  │    │
-│  │  └──────────────────┘  └─────────────────┘  └──────────────────┘  │    │
-│  └────────────────────────────────────────────────────────────────────┘    │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │                        Repository Layer                            │     │
+│  │  ┌──────────────────┐  ┌─────────────────┐  ┌──────────────────┐   │     │
+│  │  │  TodoRepository  │  │   TodoItem      │  │   TodoStatus     │   │     │
+│  │  │  (Spring Data)   │  │   (Entity)      │  │   (Enum)         │   │     │
+│  │  └──────────────────┘  └─────────────────┘  └──────────────────┘   │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -307,7 +307,7 @@ curl -X PATCH http://localhost:8080/api/todos/1/status \
                                      [Create Todo]
                                           │
                                           ▼
-                                  ┌───────────────┐
+                                 ┌───────────────┐
                        ┌─────────│   NOT DONE    │─────────┐
                        │         └───────────────┘         │
                        │                 │                 │
@@ -340,22 +340,22 @@ The service uses a **dual mechanism** to detect past due items:
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │   1. SCHEDULED (Background)              2. ON-DEMAND (API Request)         │
-│   ┌─────────────────────────┐            ┌─────────────────────────┐       │
-│   │                         │            │                         │       │
-│   │    Every 1 Minute       │            │   GET /api/todos/{id}   │       │
-│   │         │               │            │   GET /api/todos        │       │
-│   │         ▼               │            │         │               │       │
-│   │  ┌─────────────┐        │            │         ▼               │       │
-│   │  │  Scheduler  │        │            │  ┌─────────────┐        │       │
-│   │  │   checks    │        │            │  │   Service   │        │       │
-│   │  │  database   │        │            │  │   checks    │        │       │
-│   │  └──────┬──────┘        │            │  │   status    │        │       │
-│   │         │               │            │  └──────┬──────┘        │       │
-│   │         ▼               │            │         │               │       │
-│   │  Update all overdue     │            │         ▼               │       │
-│   │  items to PAST_DUE      │            │  Update if overdue      │       │
-│   │                         │            │  before returning       │       │
-│   └─────────────────────────┘            └─────────────────────────┘       │
+│   ┌─────────────────────────┐            ┌─────────────────────────┐        │
+│   │                         │            │                         │        │
+│   │    Every 1 Minute       │            │   GET /api/todos/{id}   │        │
+│   │         │               │            │   GET /api/todos        │        │
+│   │         ▼               │            │         │               │        │
+│   │  ┌─────────────┐        │            │         ▼               │        │
+│   │  │  Scheduler  │        │            │  ┌─────────────┐        │        │
+│   │  │   checks    │        │            │  │   Service   │        │        │
+│   │  │  database   │        │            │  │   checks    │        │        │
+│   │  └──────┬──────┘        │            │  │   status    │        │        │
+│   │         │               │            │  └──────┬──────┘        │        │
+│   │         ▼               │            │         │               │        │
+│   │  Update all overdue     │            │         ▼               │        │
+│   │  items to PAST_DUE      │            │ Do not Update if overdue│        │
+│   │                         │            │  before returning       │        │
+│   └─────────────────────────┘            └─────────────────────────┘        │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -378,16 +378,6 @@ make build
 
 # Using Maven directly
 ./mvnw package -DskipTests
-```
-
-### Run Tests
-
-```bash
-# Using Makefile
-make test
-
-# Using Maven directly
-./mvnw test
 ```
 
 ### Run the Service
@@ -423,28 +413,38 @@ Service will be available at `http://localhost:8080`
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                    TEST SUITE (42 Tests)                       │
+│                    TEST SUITE (67 Tests)                       │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                │
 │  Unit Tests                    Integration Tests               │
-│  ┌──────────────────────┐     ┌──────────────────────┐        │
-│  │ TodoServiceImplTest  │     │ TodoIntegrationTest  │        │
-│  │ (16 tests)           │     │ (5 tests)            │        │
-│  │                      │     │                      │        │
-│  │ • CRUD operations    │     │ • Full API flow      │        │
-│  │ • Status transitions │     │ • Error handling     │        │
-│  │ • Past due logic     │     │ • Validation         │        │
-│  └──────────────────────┘     └──────────────────────┘        │
+│  ┌──────────────────────┐     ┌──────────────────────┐         │
+│  │ TodoServiceImplTest  │     │ TodoIntegrationTest  │         │
+│  │ (13 tests)           │     │ (6 tests)            │         │
+│  │                      │     │                      │         │
+│  │ • CRUD operations    │     │ • Full API flow      │         │
+│  │ • Status transitions │     │ • Error handling     │         │
+│  │ • Past due logic     │     │ • Validation         │         │
+│  └──────────────────────┘     └──────────────────────┘         │
 │                                                                │
 │  Controller Tests              Scheduler Tests                 │
-│  ┌──────────────────────┐     ┌──────────────────────┐        │
-│  │ TodoControllerTest   │     │SchedulerIntegration  │        │
-│  │ (12 tests)           │     │ (10 tests)           │        │
-│  │                      │     │                      │        │
-│  │ • Endpoint mapping   │     │ • Auto past due      │        │
-│  │ • Request validation │     │ • Idempotency        │        │
-│  │ • Response format    │     │ • On-demand checks   │        │
-│  └──────────────────────┘     └──────────────────────┘        │
+│  ┌──────────────────────┐     ┌──────────────────────┐         │
+│  │ TodoControllerTest   │     │SchedulerIntegration  │         │
+│  │ (14 tests)           │     │ (11 tests)           │         │
+│  │                      │     │                      │         │
+│  │ • Endpoint mapping   │     │ • Auto past due      │         │
+│  │ • Request validation │     │ • Idempotency        │         │
+│  │ • Response format    │     │ • On-demand checks   │         │
+│  └──────────────────────┘     └──────────────────────┘         │
+│                                                                │
+│  Entity & Mapper Tests                                         │
+│  ┌──────────────────────┐     ┌──────────────────────┐         │
+│  │ TodoItemTest         │     │ TodoMapperTest       │         │
+│  │ (16 tests)           │     │ (6 tests)            │         │
+│  │                      │     │                      │         │
+│  │ • Lifecycle hooks    │     │ • Entity ↔ DTO       │         │
+│  │ • Effective status   │     │ • Response mapping   │         │
+│  │ • Past due detection │     │                      │         │
+│  └──────────────────────┘     └──────────────────────┘         │
 │                                                                │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -516,19 +516,6 @@ make test
 │  due_datetime       : LocalDateTime (Required)              │
 │  done_datetime      : LocalDateTime (Nullable)              │
 └─────────────────────────────────────────────────────────────┘
-```
-
-### JSON Representation
-
-```json
-{
-  "id": 1,
-  "description": "Complete the coding challenge",
-  "status": "not done",
-  "creation_datetime": "2026-01-11T10:30:00",
-  "due_datetime": "2026-01-15T18:00:00",
-  "done_datetime": null
-}
 ```
 
 ---
