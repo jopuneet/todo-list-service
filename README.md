@@ -32,6 +32,7 @@ This service provides a RESTful API for managing todo items with the following f
 - Spring Web (REST API)
 - Spring Data JPA (Database access)
 - Spring Validation (Request validation)
+- SpringDoc OpenAPI (Swagger UI & API documentation)
 - Lombok (Boilerplate reduction)
 - H2 Database (In-memory persistence)
 
@@ -41,6 +42,7 @@ This service provides a RESTful API for managing todo items with the following f
 src/
 ├── main/
 │   ├── java/com/tradebytes/todo/
+│   │   ├── config/         # Configuration (OpenAPI)
 │   │   ├── controller/     # REST Controllers
 │   │   ├── dto/            # Data Transfer Objects
 │   │   ├── entity/         # JPA Entities
@@ -50,6 +52,7 @@ src/
 │   │   ├── scheduler/      # Scheduled Tasks
 │   │   └── service/        # Business Logic
 │   └── resources/
+│       ├── api.yml         # OpenAPI Specification
 │       └── application.properties
 └── test/
     └── java/com/tradebytes/todo/
@@ -116,6 +119,19 @@ make docker-stop
 ```
 
 The service will be available at `http://localhost:8080`
+
+## API Documentation (Swagger)
+
+Once the service is running, you can access the interactive API documentation:
+
+| Resource | URL |
+|----------|-----|
+| Swagger UI | http://localhost:8080/swagger-ui.html |
+| OpenAPI JSON | http://localhost:8080/api-docs |
+| OpenAPI YAML | http://localhost:8080/api-docs.yaml |
+| Static OpenAPI Spec | `src/main/resources/api.yml` |
+
+The Swagger UI provides an interactive interface to explore and test all API endpoints.
 
 ## API Endpoints
 

@@ -1,0 +1,404 @@
+openapi: 3.0.3
+info:
+  title: Todo List Service API
+  description: |
+    A resilient backend service for managing a simple to-do list.
+    
+    ## Features
+    - Create, read, update todo items
+    - Mark items as "done" or "not done"
+    - Automatic "past due" status detection
+    - Immutable past due items (cannot be modified)
+    
+    ## Status Values
+    - `not done` - Item is pending
+    - `done` - Item has been completed
+    - `past due` - Item's due date has passed (immutable)
+  version: 1.0.0
+  contact:
+    name: Todo Service Team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Todos
+    description: Todo item management operations
+
+paths:
+  /api/todos:
+    post:
+      tags:
+        - Todos
+      summary: Create a new todo item
+      description: Creates a new todo item with the provided description and due datetime
+      operationId: createTodo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTodoRequest'
+            examples:
+              basic:
+                summary: Basic todo item
+                value:
+                  description: "Complete the coding challenge"
+                  due_datetime: "2026-01-15T18:00:00"
+      responses:
+        '201':
+          description: Todo item created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: "2026-01-11T10:30:00"
+                status: 400
+                error: "Bad Request"
+                message: "Validation failed"
+                path: "/api/todos"
+                fieldErrors:
+                  - field: "description"
+                    message: "Description is required"
+
+    get:
+      tags:
+        - Todos
+      summary: Get all todo items
+      description: |
+        Retrieves all todo items. By default, returns only items with "not done" status.
+        Use the `all` query parameter to retrieve all items regardless of status.
+      operationId: getAllTodos
+      parameters:
+        - name: all
+          in: query
+          description: If true, returns all items regardless of status. If false (default), returns only "not done" items.
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of todo items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TodoResponse'
+              examples:
+                notDoneOnly:
+                  summary: Only not done items (default)
+                  value:
+                    - id: 1
+                      description: "Complete the coding challenge"
+                      status: "not done"
+                      creation_datetime: "2026-01-11T10:30:00"
+                      due_datetime: "2026-01-15T18:00:00"
+                      done_datetime: null
+                allItems:
+                  summary: All items (all=true)
+                  value:
+                    - id: 1
+                      description: "Complete the coding challenge"
+                      status: "not done"
+                      creation_datetime: "2026-01-11T10:30:00"
+                      due_datetime: "2026-01-15T18:00:00"
+                      done_datetime: null
+                    - id: 2
+                      description: "Review pull request"
+                      status: "done"
+                      creation_datetime: "2026-01-10T09:00:00"
+                      due_datetime: "2026-01-11T12:00:00"
+                      done_datetime: "2026-01-11T11:30:00"
+
+  /api/todos/{id}:
+    get:
+      tags:
+        - Todos
+      summary: Get a todo item by ID
+      description: Retrieves the full details of a single todo item
+      operationId: getTodoById
+      parameters:
+        - $ref: '#/components/parameters/TodoId'
+      responses:
+        '200':
+          description: Todo item details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoResponse'
+        '404':
+          description: Todo item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: "2026-01-11T10:30:00"
+                status: 404
+                error: "Not Found"
+                message: "Todo item not found with id: 999"
+                path: "/api/todos/999"
+
+  /api/todos/{id}/description:
+    patch:
+      tags:
+        - Todos
+      summary: Update todo item description
+      description: |
+        Updates the description of an existing todo item.
+        
+        **Note:** This operation is not allowed for items with "past due" status.
+      operationId: updateDescription
+      parameters:
+        - $ref: '#/components/parameters/TodoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDescriptionRequest'
+            example:
+              description: "Updated task description"
+      responses:
+        '200':
+          description: Description updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Todo item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Cannot modify past due item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: "2026-01-11T10:30:00"
+                status: 409
+                error: "Conflict"
+                message: "Cannot modify todo item with id: 1. Item is past due and immutable."
+                path: "/api/todos/1/description"
+
+  /api/todos/{id}/done:
+    patch:
+      tags:
+        - Todos
+      summary: Mark todo item as done
+      description: |
+        Marks a todo item as "done" and sets the done_datetime to the current timestamp.
+        
+        **Note:** This operation is not allowed for items with "past due" status.
+      operationId: markAsDone
+      parameters:
+        - $ref: '#/components/parameters/TodoId'
+      responses:
+        '200':
+          description: Item marked as done successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoResponse'
+              example:
+                id: 1
+                description: "Complete the coding challenge"
+                status: "done"
+                creation_datetime: "2026-01-11T10:30:00"
+                due_datetime: "2026-01-15T18:00:00"
+                done_datetime: "2026-01-12T14:00:00"
+        '404':
+          description: Todo item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Cannot modify past due item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/todos/{id}/not-done:
+    patch:
+      tags:
+        - Todos
+      summary: Mark todo item as not done
+      description: |
+        Marks a todo item as "not done" and clears the done_datetime.
+        
+        **Note:** This operation is not allowed for items with "past due" status.
+      operationId: markAsNotDone
+      parameters:
+        - $ref: '#/components/parameters/TodoId'
+      responses:
+        '200':
+          description: Item marked as not done successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoResponse'
+              example:
+                id: 1
+                description: "Complete the coding challenge"
+                status: "not done"
+                creation_datetime: "2026-01-11T10:30:00"
+                due_datetime: "2026-01-15T18:00:00"
+                done_datetime: null
+        '404':
+          description: Todo item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Cannot modify past due item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  parameters:
+    TodoId:
+      name: id
+      in: path
+      description: Unique identifier of the todo item
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      example: 1
+
+  schemas:
+    CreateTodoRequest:
+      type: object
+      required:
+        - description
+        - due_datetime
+      properties:
+        description:
+          type: string
+          description: A string detailing the task
+          minLength: 1
+          example: "Complete the coding challenge"
+        due_datetime:
+          type: string
+          format: date-time
+          description: The timestamp by which the task should be completed
+          example: "2026-01-15T18:00:00"
+
+    UpdateDescriptionRequest:
+      type: object
+      required:
+        - description
+      properties:
+        description:
+          type: string
+          description: The new description for the todo item
+          minLength: 1
+          example: "Updated task description"
+
+    TodoResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier of the todo item
+          example: 1
+        description:
+          type: string
+          description: A string detailing the task
+          example: "Complete the coding challenge"
+        status:
+          type: string
+          description: Current status of the todo item
+          enum:
+            - "not done"
+            - "done"
+            - "past due"
+          example: "not done"
+        creation_datetime:
+          type: string
+          format: date-time
+          description: The timestamp when the item was created
+          example: "2026-01-11T10:30:00"
+        due_datetime:
+          type: string
+          format: date-time
+          description: The timestamp by which the task should be completed
+          example: "2026-01-15T18:00:00"
+        done_datetime:
+          type: string
+          format: date-time
+          nullable: true
+          description: The timestamp when the item was marked as "done" (null if not done)
+          example: null
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred
+          example: "2026-01-11T10:30:00"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        error:
+          type: string
+          description: HTTP status reason phrase
+          example: "Bad Request"
+        message:
+          type: string
+          description: Detailed error message
+          example: "Validation failed"
+        path:
+          type: string
+          description: Request path that caused the error
+          example: "/api/todos"
+        fieldErrors:
+          type: array
+          description: List of field-specific validation errors (only present for validation errors)
+          items:
+            $ref: '#/components/schemas/FieldError'
+
+    FieldError:
+      type: object
+      properties:
+        field:
+          type: string
+          description: Name of the field that failed validation
+          example: "description"
+        message:
+          type: string
+          description: Validation error message
+          example: "Description is required"
