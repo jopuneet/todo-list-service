@@ -173,34 +173,34 @@ class SchedulerIntegrationTest {
     }
 
     @Nested
-    @DisplayName("On-Demand Past Due Check Tests")
-    class OnDemandPastDueCheckTests {
+    @DisplayName("Read Operations Are Pure (No Side Effects)")
+    class ReadOperationsPurityTests {
 
         @Test
-        @DisplayName("Getting an overdue item via API should mark it as past due")
-        void gettingOverdueItemShouldMarkAsPastDue() throws Exception {
+        @DisplayName("Getting an overdue item should show past due status but NOT modify database")
+        void gettingOverdueItemShouldShowPastDueWithoutModifyingDb() throws Exception {
             // Create an overdue item (NOT_DONE but due date has passed)
             TodoItem overdueItem = TodoItem.builder()
                     .description("Overdue task")
                     .status(TodoStatus.NOT_DONE)
                     .creationDatetime(LocalDateTime.now().minusDays(2))
-                    .dueDatetime(LocalDateTime.now().minusMinutes(5)) // Due 5 minutes ago
+                    .dueDatetime(LocalDateTime.now().minusMinutes(5))
                     .build();
             overdueItem = todoRepository.save(overdueItem);
 
-            // Get the item via API - should trigger on-demand past due check
+            // Get the item via API - should show "past due" in response
             mockMvc.perform(get("/api/todos/" + overdueItem.getId()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("past due"));
 
-            // Verify in database
-            TodoItem updated = todoRepository.findById(overdueItem.getId()).orElseThrow();
-            assertThat(updated.getStatus()).isEqualTo(TodoStatus.PAST_DUE);
+            // But database should remain unchanged (still NOT_DONE)
+            TodoItem unchanged = todoRepository.findById(overdueItem.getId()).orElseThrow();
+            assertThat(unchanged.getStatus()).isEqualTo(TodoStatus.NOT_DONE);
         }
 
         @Test
-        @DisplayName("Listing todos should mark overdue items as past due")
-        void listingTodosShouldMarkOverdueItemsAsPastDue() throws Exception {
+        @DisplayName("Listing todos should show computed status but NOT modify database")
+        void listingTodosShouldShowComputedStatusWithoutModifyingDb() throws Exception {
             // Create an overdue item
             TodoItem overdueItem = TodoItem.builder()
                     .description("Overdue task")
@@ -210,28 +210,48 @@ class SchedulerIntegrationTest {
                     .build();
             todoRepository.save(overdueItem);
 
-            // Create a valid item
-            TodoItem validItem = TodoItem.builder()
-                    .description("Valid task")
-                    .status(TodoStatus.NOT_DONE)
-                    .creationDatetime(LocalDateTime.now())
-                    .dueDatetime(LocalDateTime.now().plusDays(1))
-                    .build();
-            todoRepository.save(validItem);
-
-            // List all todos - the overdue one should be updated
+            // List all todos - should show "past due" in response
             mockMvc.perform(get("/api/todos").param("all", "true"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.length()").value(2));
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].status").value("past due"));
 
-            // Verify overdue item is now past due in database
-            TodoItem updatedOverdue = todoRepository.findById(overdueItem.getId()).orElseThrow();
-            assertThat(updatedOverdue.getStatus()).isEqualTo(TodoStatus.PAST_DUE);
-
-            // Valid item should still be NOT_DONE
-            TodoItem updatedValid = todoRepository.findById(validItem.getId()).orElseThrow();
-            assertThat(updatedValid.getStatus()).isEqualTo(TodoStatus.NOT_DONE);
+            // But database should remain unchanged
+            TodoItem unchanged = todoRepository.findById(overdueItem.getId()).orElseThrow();
+            assertThat(unchanged.getStatus()).isEqualTo(TodoStatus.NOT_DONE);
         }
+
+        @Test
+        @DisplayName("Scheduler should persist the past due status to database")
+        void schedulerShouldPersistPastDueStatus() throws Exception {
+            // Create an overdue item
+            TodoItem overdueItem = TodoItem.builder()
+                    .description("Overdue task")
+                    .status(TodoStatus.NOT_DONE)
+                    .creationDatetime(LocalDateTime.now().minusDays(1))
+                    .dueDatetime(LocalDateTime.now().minusMinutes(5))
+                    .build();
+            overdueItem = todoRepository.save(overdueItem);
+
+            // Before scheduler: DB has NOT_DONE, API shows "past due"
+            TodoItem beforeScheduler = todoRepository.findById(overdueItem.getId()).orElseThrow();
+            assertThat(beforeScheduler.getStatus()).isEqualTo(TodoStatus.NOT_DONE);
+
+            mockMvc.perform(get("/api/todos/" + overdueItem.getId()))
+                    .andExpect(jsonPath("$.status").value("past due"));
+
+            // Run scheduler - NOW database should be updated
+            pastDueScheduler.updatePastDueItems();
+
+            // After scheduler: DB also has PAST_DUE
+            TodoItem afterScheduler = todoRepository.findById(overdueItem.getId()).orElseThrow();
+            assertThat(afterScheduler.getStatus()).isEqualTo(TodoStatus.PAST_DUE);
+        }
+    }
+
+    @Nested
+    @DisplayName("Overdue Item Modification Prevention Tests")
+    class OverdueItemModificationPreventionTests {
 
         @Test
         @DisplayName("Attempting to modify an overdue item should fail with conflict")
@@ -239,9 +259,9 @@ class SchedulerIntegrationTest {
             // Create an overdue item that hasn't been marked as past due yet
             TodoItem overdueItem = TodoItem.builder()
                     .description("Overdue task")
-                    .status(TodoStatus.NOT_DONE) // Still NOT_DONE in DB
+                    .status(TodoStatus.NOT_DONE)
                     .creationDatetime(LocalDateTime.now().minusDays(1))
-                    .dueDatetime(LocalDateTime.now().minusMinutes(5)) // But due date has passed
+                    .dueDatetime(LocalDateTime.now().minusMinutes(5))
                     .build();
             overdueItem = todoRepository.save(overdueItem);
 
@@ -252,16 +272,26 @@ class SchedulerIntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(statusRequest))
                     .andExpect(status().isConflict());
+        }
 
-            // The validateNotPastDue method marks the item as past due and saves it,
-            // but then throws an exception. Due to transaction rollback on exception,
-            // the status change may not persist. The important thing is that the API
-            // correctly rejects the modification attempt.
-            
-            // Verify that subsequent attempts also fail (item is now recognized as past due)
-            mockMvc.perform(patch("/api/todos/" + overdueItem.getId() + "/status")
+        @Test
+        @DisplayName("Attempting to update description of overdue item should fail")
+        void attemptingToUpdateDescriptionOfOverdueItemShouldFail() throws Exception {
+            // Create an overdue item
+            TodoItem overdueItem = TodoItem.builder()
+                    .description("Overdue task")
+                    .status(TodoStatus.NOT_DONE)
+                    .creationDatetime(LocalDateTime.now().minusDays(1))
+                    .dueDatetime(LocalDateTime.now().minusMinutes(5))
+                    .build();
+            overdueItem = todoRepository.save(overdueItem);
+
+            // Try to update description - should fail
+            String descRequest = "{\"description\": \"Updated description\"}";
+
+            mockMvc.perform(patch("/api/todos/" + overdueItem.getId() + "/description")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(statusRequest))
+                            .content(descRequest))
                     .andExpect(status().isConflict());
         }
     }

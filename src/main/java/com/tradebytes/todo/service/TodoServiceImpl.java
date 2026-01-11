@@ -42,31 +42,22 @@ public class TodoServiceImpl implements TodoService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public TodoResponse getTodoById(Long id) {
         log.debug("Fetching todo item with id: {}", id);
-        
         TodoItem todoItem = findTodoById(id);
-        
-        // Check if item should be marked as past due
-        checkAndUpdatePastDue(todoItem);
-        
         return todoMapper.toResponse(todoItem);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<TodoResponse> getAllTodos(boolean includeAll) {
         log.debug("Fetching all todos, includeAll: {}", includeAll);
-        
-        List<TodoItem> todos;
-        if (includeAll) {
-            todos = todoRepository.findAll();
-        } else {
-            todos = todoRepository.findByStatus(TodoStatus.NOT_DONE);
-        }
-        
-        // Check and update past due items
-        todos.forEach(this::checkAndUpdatePastDue);
-        
+
+        List<TodoItem> todos = includeAll
+                ? todoRepository.findAll()
+                : todoRepository.findByStatus(TodoStatus.NOT_DONE);
+
         return todos.stream()
                 .map(todoMapper::toResponse)
                 .toList();
@@ -156,14 +147,4 @@ public class TodoServiceImpl implements TodoService {
         }
     }
 
-    /**
-     * Check if item is past due and update status if needed.
-     */
-    private void checkAndUpdatePastDue(TodoItem todoItem) {
-        if (todoItem.getStatus() == TodoStatus.NOT_DONE && 
-            todoItem.getDueDatetime().isBefore(LocalDateTime.now())) {
-            todoItem.setStatus(TodoStatus.PAST_DUE);
-            todoRepository.save(todoItem);
-        }
-    }
 }
